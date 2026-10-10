@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c1a17">
+<title>Reszta i napiwki</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+:root{
+  --bg:#f3f6f2; --surface:#ffffff; --surface2:#e6ece6; --ink:#12241f; --muted:#5d6f68;
+  --accent:#0e7a5a; --accent-ink:#ffffff; --tip:#e0a21a; --tip-ink:#2b1d00; --danger:#c2402f; --line:#d3dcd5;
+  --n10:#c9533f; --n20:#d9779a; --n50:#3f7fc4; --n100:#3f9a5c; --n200:#b9893a; --coin:#8c9892;
+  --display:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --body:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1a17; --surface:#142824; --surface2:#1f3a33; --ink:#e9f2ed; --muted:#8fa89f;
+    --accent:#35c690; --accent-ink:#062018; --tip:#f0b93a; --line:#27443d; --danger:#ef6f5e; --coin:#6f827b;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1a17; --surface:#142824; --surface2:#1f3a33; --ink:#e9f2ed; --muted:#8fa89f;
+  --accent:#35c690; --accent-ink:#062018; --tip:#f0b93a; --line:#27443d; --danger:#ef6f5e; --coin:#6f827b;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;overscroll-behavior:none}
+button{font-family:inherit;-webkit-user-select:none;user-select:none}
+.app{max-width:560px;margin:0 auto;padding:10px 12px 66px}
+.view{display:none}
+.view.on{display:flex;flex-direction:column;min-height:calc(100dvh - 76px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));gap:8px}
+
+/* wyświetlacze */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{border:2px solid var(--line);background:var(--surface);border-radius:18px;padding:8px 14px 8px;text-align:left;color:var(--ink);cursor:pointer;min-width:0}
+.tile small{display:block;font-size:13px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .v{font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:-.02em;line-height:1.15;white-space:nowrap;overflow:hidden}
+.tile .v.ph{color:var(--muted);opacity:.5}
+.tile .v u{text-decoration:none;font-size:16px;color:var(--muted);margin-left:4px;font-weight:700}
+.tile.act{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.tile.tipact{border-color:var(--tip);box-shadow:0 0 0 3px color-mix(in srgb,var(--tip) 30%,transparent)}
+
+/* szybkie banknoty */
+.quick{display:grid;grid-template-columns:1.25fr repeat(5,1fr);gap:6px}
+.chip{border:0;font-family:var(--display);font-weight:800;font-size:19px;color:#fff;height:46px;border-radius:13px;cursor:pointer;padding:0}
+.chip:active{transform:scale(.94)}
+.chip.n10{background:var(--n10)}.chip.n20{background:var(--n20)}.chip.n50{background:var(--n50)}
+.chip.n100{background:var(--n100)}.chip.n200{background:var(--n200)}
+.chip.eq{background:var(--surface2);color:var(--ink);font-size:15px}
+
+/* wynik */
+.result{background:var(--accent);color:var(--accent-ink);border-radius:20px;padding:8px 14px 10px;position:relative;text-align:center}
+.result.bad{background:var(--danger);color:#fff}
+.result.idle{background:var(--surface2);color:var(--muted)}
+.result small{display:block;font-size:14px;font-weight:500;opacity:.9}
+.big{font-family:var(--display);font-weight:800;font-size:52px;line-height:1.05;letter-spacing:-.03em;margin:0}
+.big em{font-style:normal;font-size:24px;margin-left:6px;opacity:.8}
+.newc{position:absolute;right:8px;top:8px;border:0;background:rgba(0,0,0,.18);color:inherit;border-radius:12px;height:36px;padding:0 12px;font-weight:700;font-size:14px;cursor:pointer}
+.idle .newc{background:var(--line)}
+
+/* jak wydać */
+.give{display:flex;flex-wrap:wrap;gap:6px}
+.coin{display:flex;align-items:center;gap:7px;border-radius:12px;padding:6px 11px;background:var(--surface);border:1px solid var(--line);font-family:var(--display);font-weight:700;font-size:17px}
+.coin b{font-size:20px}
+.coin i{width:13px;height:13px;border-radius:4px;display:inline-block;background:var(--coin)}
+.coin i.round{border-radius:50%}
+.coin[data-c="1000"] i{background:var(--n10)}.coin[data-c="2000"] i{background:var(--n20)}.coin[data-c="5000"] i{background:var(--n50)}
+.coin[data-c="10000"] i{background:var(--n100)}.coin[data-c="20000"] i{background:var(--n200)}
+.hint{color:var(--muted);font-size:14px;margin:0}
+
+/* napiwek */
+.tipbox{background:var(--surface);border:2px solid var(--tip);border-radius:18px;padding:8px 10px;display:flex;flex-direction:column;gap:8px}
+.tipbox .head{display:flex;justify-content:space-between;align-items:center;padding:0 4px;font-family:var(--display);font-weight:700;font-size:16px}
+.tipbox .head span{color:var(--muted);font-family:var(--body);font-weight:500;font-size:13px}
+.tchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tchips::-webkit-scrollbar{display:none}
+.tchip{flex:0 0 auto;border:2px solid var(--line);background:var(--bg);color:var(--ink);border-radius:13px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;text-align:left;line-height:1.2;min-height:46px}
+.tchip b{display:block;font-family:var(--display);font-size:17px}
+.tchip.sel{border-color:var(--tip);background:var(--tip);color:var(--tip-ink)}
+.btn{border:0;border-radius:15px;height:50px;font-family:var(--display);font-weight:800;font-size:19px;cursor:pointer;background:var(--accent);color:var(--accent-ink);width:100%}
+.btn.tip{background:var(--tip);color:var(--tip-ink)}
+.btn[disabled]{opacity:.35;cursor:default}
+.btn.ghost{background:transparent;color:var(--muted);border:2px solid var(--line);font-size:15px;height:44px}
+.btn:active:not([disabled]){transform:scale(.98)}
+
+/* klawiatura */
+.pad{margin-top:auto;display:grid;grid-template-columns:repeat(3,1fr) 1.15fr;gap:7px;padding-top:4px}
+.key{border:0;border-radius:16px;background:var(--surface);color:var(--ink);border:1px solid var(--line);font-family:var(--display);font-weight:700;font-size:28px;height:clamp(50px,7.3dvh,66px);cursor:pointer}
+.key:active{background:var(--surface2);transform:scale(.96)}
+.key.fn{background:var(--surface2);font-size:24px}
+.key.go{grid-column:4;grid-row:2 / span 3;height:auto;background:var(--accent);color:var(--accent-ink);border:0;font-size:20px;line-height:1.2;padding:0 6px}
+.key.go.tipgo{background:var(--tip);color:var(--tip-ink)}
+.key.go span{display:block;font-size:30px}
+
+/* napiwki */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px}
+.stat.hero{grid-column:1/3;background:var(--tip);color:var(--tip-ink);border:0;text-align:center;padding:16px}
+.stat small{font-size:14px;opacity:.75;font-weight:500}
+.stat div{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:-.02em}
+.stat.hero div{font-size:54px;line-height:1.1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px}
+.card h2{font-family:var(--display);font-size:17px;margin:0 0 8px}
+.row{display:flex;gap:8px}
+.inp{flex:1;min-width:0;font-family:var(--display);font-weight:700;font-size:24px;padding:8px 14px;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--ink);outline:none}
+.inp:focus{border-color:var(--tip)}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;justify-content:space-between;padding:10px 2px;border-bottom:1px solid var(--line)}
+.list li:last-child{border:0}
+.list .amt{font-family:var(--display);font-weight:700;font-size:20px}
+.list .when{color:var(--muted);font-size:13px}
+.del{border:0;background:var(--surface2);color:var(--muted);width:40px;height:40px;border-radius:12px;font-size:18px;cursor:pointer}
+.empty{color:var(--muted);text-align:center;padding:16px 8px;display:block!important}
+
+/* kasa */
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;color:var(--ink);cursor:pointer;font-size:17px;font-family:var(--display)}
+.toggle small{display:block;font-family:var(--body);font-weight:400;font-size:13px;color:var(--muted)}
+.pill{flex:0 0 auto;border-radius:999px;padding:8px 14px;font-weight:800;font-size:14px;background:var(--surface2);color:var(--muted)}
+.pill.on{background:var(--accent);color:var(--accent-ink)}
+.tillhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.tillhead h2{margin:0}
+.tillhead span{font-family:var(--display);font-weight:800;font-size:18px;color:var(--muted)}
+.trow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.trow:last-child{border:0}
+.trow .sw{width:16px;height:16px;border-radius:5px;flex:0 0 auto;background:var(--coin)}
+.trow .sw.round{border-radius:50%}
+.trow .nm{flex:1;font-family:var(--display);font-weight:700;font-size:20px}
+.step{width:46px;height:46px;border-radius:14px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-size:26px;font-weight:700;cursor:pointer;padding:0}
+.step:active{transform:scale(.93)}
+.cnt{min-width:62px;height:46px;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--ink);font-family:var(--display);font-weight:800;font-size:22px;cursor:pointer;padding:0 6px}
+.cnt.zero{color:var(--muted);opacity:.6}
+.warn{margin:0 0 6px;padding:8px 12px;border-radius:12px;background:var(--danger);color:#fff;font-size:14px;font-weight:700}
+.quick.trk{grid-template-columns:1.25fr repeat(5,1fr) .8fr}
+.tundo{border:0;border-radius:10px;background:var(--tip);color:var(--tip-ink);font-weight:800;font-size:15px;padding:8px 12px;cursor:pointer;flex:0 0 auto}
+.cnt.low{border-color:var(--tip);color:var(--tip)}
+.warn.amber{background:var(--tip);color:var(--tip-ink)}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;display:none;align-items:flex-end}
+.sheetin{background:var(--bg);width:100%;max-width:560px;margin:0 auto;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));max-height:90dvh;overflow:auto}
+.sheet .trow{padding:4px 0}
+.sheet .step{width:44px;height:44px}
+.cntv{min-width:50px;text-align:center;font-family:var(--display);font-weight:800;font-size:22px}
+.cntv.zero{color:var(--muted);opacity:.5}
+nav button{position:relative}
+.dot{position:absolute;top:6px;left:calc(50% + 10px);width:10px;height:10px;border-radius:50%;background:var(--danger);display:none}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav .in{display:flex;width:100%;max-width:560px}
+nav button{flex:1;border:0;background:transparent;color:var(--muted);font-family:var(--display);font-weight:700;font-size:15px;padding:7px 0 9px;cursor:pointer}
+nav button.on{color:var(--accent)}
+nav button span{display:block;font-size:20px;line-height:1.2}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:14px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:9;max-width:92vw;display:flex;align-items:center;gap:14px}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion: reduce){.toast{transition:none}.chip:active,.key:active,.btn:active{transform:none}}
+button:focus-visible,input:focus-visible{outline:3px solid var(--tip);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <section class="view on" id="v-change">
+    <div class="tiles">
+      <button class="tile act" id="tDue"><small>Do zapłaty</small><div class="v ph" id="vDue">0,00</div></button>
+      <button class="tile" id="tPaid"><small id="lblPaid">Klient dał</small><div class="v ph" id="vPaid">0,00</div></button>
+    </div>
+
+    <div class="quick" id="quick">
+      <button class="chip eq" data-q="eq">Równo</button>
+      <button class="chip n10" data-q="10">10</button>
+      <button class="chip n20" data-q="20">20</button>
+      <button class="chip n50" data-q="50">50</button>
+      <button class="chip n100" data-q="100">100</button>
+      <button class="chip n200" data-q="200">200</button>
+      <button class="chip eq" id="moreBtn" data-q="more" aria-label="Rozpisz banknoty od klienta" style="display:none">⋯</button>
+    </div>
+
+    <div class="result idle" id="result" aria-live="polite">
+      <button class="newc" id="clear" aria-label="Nowy klient">Nowy ✕</button>
+      <small id="rlabel">Reszta</small>
+      <p class="big" id="rbig">—</p>
+    </div>
+
+    <div id="giveWrap" style="display:none">
+      <p class="warn" id="shortMsg" style="display:none"></p>
+      <div class="give" id="give"></div>
+      <button class="btn" id="doneBtn" style="display:none;margin-top:8px;height:44px;font-size:17px">Wydano ✓ odejmij z kasy</button>
+    </div>
+
+    <div class="tipbox" id="tipCard" style="display:none">
+      <div class="head">Napiwek <span id="tipInfo"></span></div>
+      <div class="tchips" id="tipChips"></div>
+      <button class="btn tip" id="saveTip" disabled>Zapisz napiwek</button>
+    </div>
+
+    <div class="pad" id="pad">
+      <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+      <button class="key fn" data-k="back" aria-label="Usuń cyfrę">⌫</button>
+      <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+      <button class="key go" id="go" data-k="go"><span>▸</span>Klient dał</button>
+      <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+      <button class="key fn" data-k=",">,</button><button class="key" data-k="0">0</button><button class="key fn" data-k="00">00</button>
+    </div>
+  </section>
+
+  <section class="view" id="v-tips">
+    <div class="stats">
+      <div class="stat hero"><small>Dzisiaj</small><div id="sToday">0,00 zł</div></div>
+      <div class="stat"><small>Ostatnie 7 dni</small><div id="sWeek">0,00 zł</div></div>
+      <div class="stat"><small>Razem</small><div id="sAll">0,00 zł</div></div>
+    </div>
+    <div class="card">
+      <h2>Dodaj ręcznie</h2>
+      <div class="row">
+        <input class="inp" id="manual" type="text" inputmode="decimal" placeholder="0,00 zł" autocomplete="off" aria-label="Kwota napiwku">
+        <button class="btn tip" id="addManual" style="width:110px">Dodaj</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Historia</h2>
+      <ul class="list" id="hist"></ul>
+    </div>
+  </section>
+
+  <section class="view" id="v-till">
+    <p class="warn amber" id="lowMsg" style="display:none"></p>
+    <button class="card toggle" id="trackBtn"><div><b>Pilnuj stanu kasy</b><small>Reszta tylko z nominałów, które masz</small></div><span class="pill" id="trackPill">WYŁ.</span></button>
+    <div class="card">
+      <div class="tillhead"><h2>Co mam w kasie</h2><span id="tillTotal">0,00 zł</span></div>
+      <div id="tillRows"></div>
+    </div>
+    <button class="btn ghost" id="undoBtn" style="display:none">↶ Cofnij ostatnie wydanie</button>
+  </section>
+
+  <section class="view" id="v-set">
+    <div class="card">
+      <div class="tillhead"><h2>Ostrzeż, gdy zostanie mniej niż</h2><span id="minVal">5 szt.</span></div>
+      <p class="hint" style="margin-bottom:10px">Dotyczy nominałów w zakładce Kasa (przy włączonym pilnowaniu).</p>
+      <div class="row"><button class="step" id="minMinus" style="flex:1;width:auto" aria-label="Mniej">−</button><button class="step" id="minPlus" style="flex:1;width:auto" aria-label="Więcej">+</button></div>
+    </div>
+    <div class="card">
+      <h2>Wszystkie dane</h2>
+      <p class="hint" style="margin-bottom:10px">Ile gotówki masz, ile sztuk każdego nominału oraz napiwki.</p>
+      <button class="btn" id="shareAll">Udostępnij wszystko</button>
+      <button class="btn ghost" id="dlAll" style="margin-top:8px">Pobierz plik CSV</button>
+    </div>
+    <div class="card">
+      <h2>Wibracje</h2>
+      <p class="hint" style="margin-bottom:10px">Telefon wibruje przy każdym dotknięciu przycisku.</p>
+      <button class="btn ghost" id="vibTest">Sprawdź wibracje</button>
+    </div>
+    <button class="btn ghost" id="tillReset">Wyzeruj kasę</button>
+    <button class="btn ghost" id="wipe">Wyczyść wszystkie napiwki</button>
+  </section>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="sheetin">
+    <div class="tillhead"><h2>Co dał klient</h2><span id="rcvTotal">0,00 zł</span></div>
+    <div id="rcvRows"></div>
+    <div class="row" style="margin-top:10px"><button class="btn ghost" id="rcvClear" style="flex:1">Wyczyść</button><button class="btn" id="rcvOk" style="flex:2">Gotowe</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav><div class="in">
+  <button class="on" data-v="change"><span>🧮</span>Reszta</button>
+  <button data-v="tips"><span>💰</span>Napiwki</button>
+  <button data-v="till"><i class="dot" id="lowDot"></i><span>🪙</span>Kasa</button>
+  <button data-v="set"><span>⚙️</span>Ustawienia</button>
+</div></nav>
+
+<script>
+(function(){
+  var $ = function(id){return document.getElementById(id)};
+  var DENOMS = [20000,10000,5000,2000,1000,500,200,100,50,20,10,5,2,1];
+  var lastPlan = {list:[],rest:0};
+  var lastUndo = null;
+  var s = {due:'', paid:'', tipStr:'', tipC:0, custom:false, active:'due', recv:{}};
+  var tips = [];
+  var KEY = 'napiwki_v1';
+
+  try { var raw = localStorage.getItem(KEY); if (raw) tips = JSON.parse(raw) || []; } catch(e){ tips = []; }
+  function persist(){ try { localStorage.setItem(KEY, JSON.stringify(tips)); } catch(e){} }
+  var till = {track:false, c:{}, seen:{}, min:5};
+  try { var tr = localStorage.getItem('kasa_v1'); if (tr){ var o = JSON.parse(tr); if (o) till = {track:!!o.track, c:o.c||{}, seen:o.seen||{}, min:(o.min==null?5:o.min)}; } } catch(e){}
+  Object.keys(till.c).forEach(function(k){ if (till.c[k] > 0) till.seen[k] = true; });
+  function persistTill(){ try { localStorage.setItem('kasa_v1', JSON.stringify(till)); } catch(e){} }
+  function isLow(d){ return till.track && till.min > 0 && till.seen[d] && (till.c[d]||0) < till.min; }
+  function lowList(){ return DENOMS.filter(isLow); }
+  var lastBuzz = 0;
+  function buzz(ms){
+    var n = Date.now(); if (n - lastBuzz < 60) return; lastBuzz = n;
+    try { if (navigator.vibrate) navigator.vibrate(ms || 25); } catch(e){}
+  }
+  document.addEventListener('click', function(e){ if (e.target.closest && e.target.closest('button')) buzz(); }, true);
+
+  function toCents(x){
+    if (!x) return 0;
+    var n = parseFloat(String(x).replace(/\s/g,'').replace(',','.'));
+    return isFinite(n) && n > 0 ? Math.round(n*100) : 0;
+  }
+  function fmt(c){
+    var neg = c < 0; c = Math.abs(c);
+    var z = Math.floor(c/100), g = c % 100;
+    var zs = String(z).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00A0');
+    return (neg?'-':'') + zs + ',' + (g<10?'0':'') + g;
+  }
+  function label(d){ return d >= 100 ? (d/100) + ' zł' : d + ' gr'; }
+  function toast(msg, undo){
+    var t = $('toast'); t.innerHTML = '';
+    var sp = document.createElement('span'); sp.textContent = msg; t.appendChild(sp);
+    if (undo){ var b = document.createElement('button'); b.className = 'tundo'; b.textContent = 'Cofnij'; b.onclick = doUndo; t.appendChild(b); }
+    t.style.pointerEvents = undo ? 'auto' : 'none';
+    t.classList.add('show');
+    clearTimeout(toast.h);
+    toast.h = setTimeout(function(){ t.classList.remove('show'); t.style.pointerEvents = 'none'; }, undo ? 6500 : 1800);
+  }
+  function avail(d){ return till.track ? (till.c[d]||0) : Infinity; }
+  function plan(c){
+    var list = [], rest = c;
+    DENOMS.forEach(function(d){
+      var n = Math.min(Math.floor(rest/d), avail(d));
+      if (n > 0){ list.push([d,n]); rest -= n*d; }
+    });
+    if (rest === 0 || !till.track || c > 200000) return {list:list, rest:rest};
+    var m = c, INF = 1e9, prev = new Int32Array(m+1).fill(INF), choices = [];
+    prev[0] = 0;
+    DENOMS.forEach(function(d){
+      var cnt = Math.min(till.c[d]||0, Math.floor(m/d));
+      var cur = new Int32Array(m+1).fill(INF), ch = new Uint16Array(m+1);
+      for (var a = 0; a <= m; a++){
+        var best = INF, bk = 0;
+        for (var k = 0; k <= cnt && k*d <= a; k++){
+          var pv = prev[a-k*d];
+          if (pv < INF && pv + k < best){ best = pv + k; bk = k; }
+        }
+        cur[a] = best; ch[a] = bk;
+      }
+      choices.push(ch); prev = cur;
+    });
+    if (prev[m] >= INF) return {list:list, rest:rest};
+    var out = [], a2 = m;
+    for (var i = DENOMS.length-1; i >= 0; i--){
+      var kk = choices[i][a2];
+      if (kk > 0) out.push([DENOMS[i], kk]);
+      a2 -= kk*DENOMS[i];
+    }
+    return {list:out.reverse(), rest:0};
+  }
+  function commit(){
+    if (!till.track) return;
+    lastPlan.list.forEach(function(p){ till.c[p[0]] = Math.max(0, (till.c[p[0]]||0) - p[1]); });
+    DENOMS.forEach(function(d){ if (s.recv && s.recv[d] > 0){ till.c[d] = (till.c[d]||0) + s.recv[d]; till.seen[d] = true; } });
+    persistTill(); renderTill();
+  }
+
+  function press(k){
+    buzz();
+    if (k === 'go'){
+      s.active = (s.active === 'due') ? 'paid' : (s.active === 'paid' ? 'due' : 'paid');
+      return update();
+    }
+    var t = s.active, str = (t === 'tip') ? s.tipStr : s[t];
+    if (k === 'back'){ str = str.slice(0,-1); }
+    else if (k === ','){ if (str.indexOf(',') < 0) str = (str || '0') + ','; }
+    else {
+      var ci = str.indexOf(',');
+      if (ci >= 0){
+        var room = 2 - (str.length - ci - 1);
+        if (room > 0) str += (k === '00' ? '00'.slice(0,room) : k);
+      } else if (str === '0'){ str = (k === '00') ? '0' : k; }
+      else if (str === '' && k === '00'){ /* ignoruj */ }
+      else if (str.length < 7){ str += k; }
+    }
+    if (t === 'tip'){
+      s.tipStr = str;
+      var max = Math.max(toCents(s.paid) - toCents(s.due), 0);
+      s.tipC = Math.min(toCents(str), max);
+    } else {
+      s[t] = str; s.tipC = 0; s.custom = false; s.tipStr = ''; if (t === 'paid') s.recv = {};
+    }
+    update();
+  }
+
+  function update(){
+    var due = toCents(s.due), paid = toCents(s.paid);
+    // wyświetlacze
+    function show(id, val){
+      var el = $(id);
+      if (val){ el.className = 'v'; el.innerHTML = val + '<u>zł</u>'; }
+      else { el.className = 'v ph'; el.textContent = '0,00'; }
+    }
+    show('vDue', s.due); show('vPaid', s.paid);
+    $('quick').className = 'quick' + (till.track ? ' trk' : '');
+    $('moreBtn').style.display = till.track ? '' : 'none';
+    var rs = recvSummary(); $('lblPaid').textContent = 'Klient dał' + (rs ? ' · ' + rs : '');
+    $('tDue').className = 'tile' + (s.active === 'due' ? ' act' : '');
+    $('tPaid').className = 'tile' + (s.active === 'paid' ? ' act' : '');
+    var go = $('go');
+    if (s.active === 'tip'){ go.className = 'key go tipgo'; go.innerHTML = '<span>✓</span>Gotowe'; }
+    else { go.className = 'key go'; go.innerHTML = s.active === 'due' ? '<span>▸</span>Klient dał' : '<span>◂</span>Do zapłaty'; }
+
+    var res = $('result'), big = $('rbig'), lab = $('rlabel');
+    res.className = 'result';
+    var giveWrap = $('giveWrap'), tipCard = $('tipCard');
+    giveWrap.style.display = 'none'; tipCard.style.display = 'none';
+
+    if (!due || !paid){
+      res.classList.add('idle'); lab.textContent = 'Reszta'; big.textContent = '—'; return;
+    }
+    var change = paid - due;
+    if (change < 0){
+      res.classList.add('bad'); lab.textContent = 'Brakuje';
+      big.innerHTML = fmt(-change) + '<em>zł</em>'; return;
+    }
+    if (s.tipC > change) s.tipC = change;
+    var tip = s.tipC, give = change - tip;
+    lab.textContent = tip > 0 ? 'Reszta do wydania (po napiwku)' : 'Reszta do wydania';
+    big.innerHTML = fmt(give) + '<em>zł</em>';
+    if (change === 0) return;
+
+    // rozpiska
+    lastPlan = {list:[], rest:0};
+    giveWrap.style.display = '';
+    var gv = $('give'); gv.innerHTML = '';
+    if (give === 0){
+      gv.innerHTML = '<p class="hint">Nic nie wydajesz, cała reszta to napiwek.</p>';
+    } else {
+      var pl = plan(give); lastPlan = pl;
+      pl.list.forEach(function(p){
+        var el = document.createElement('div');
+        el.className = 'coin'; el.setAttribute('data-c', p[0]);
+        el.innerHTML = '<i class="' + (p[0] < 1000 ? 'round' : '') + '"></i><b>' + p[1] + '×</b> ' + label(p[0]);
+        gv.appendChild(el);
+      });
+    }
+    var sm = $('shortMsg');
+    if (give > 0 && lastPlan.rest > 0){
+      sm.style.display = ''; sm.textContent = 'Brak nominałów w kasie na ' + fmt(lastPlan.rest) + ' zł';
+    } else { sm.style.display = 'none'; }
+    $('doneBtn').style.display = (till.track && give > 0 && lastPlan.rest === 0) ? '' : 'none';
+
+    // napiwek
+    tipCard.style.display = '';
+    $('tipInfo').textContent = tip > 0 ? 'zostaje ' + fmt(tip) + ' zł' : 'ile zostawia klient?';
+    var chips = $('tipChips'); chips.innerHTML = '';
+    function addChip(title, amount){
+      var b = document.createElement('button');
+      b.className = 'tchip' + (!s.custom && tip === amount ? ' sel' : '');
+      b.innerHTML = title + '<b>' + fmt(amount) + ' zł</b>';
+      b.onclick = function(){ buzz(); s.custom = false; s.tipStr = ''; s.tipC = (tip === amount) ? 0 : amount; if (s.active === 'tip') s.active = 'paid'; update(); };
+      chips.appendChild(b);
+    }
+    addChip('Cała reszta', change);
+    [1000,500,100].forEach(function(step){
+      var t = change % step;
+      if (t > 0 && t < change) addChip('Pełne ' + (step/100) + ' zł', t);
+    });
+    var o = document.createElement('button');
+    o.className = 'tchip' + (s.custom ? ' sel' : '');
+    o.innerHTML = 'Inna kwota<b>' + (s.custom && s.tipStr ? s.tipStr + ' zł' : 'wpisz ✎') + '</b>';
+    o.onclick = function(){ buzz(); s.custom = true; s.active = 'tip'; s.tipStr = ''; s.tipC = 0; update(); };
+    chips.appendChild(o);
+    if (s.active === 'tip') $('tipCard').style.borderColor = 'var(--tip)';
+    $('saveTip').disabled = tip <= 0;
+  }
+
+  $('tDue').onclick = function(){ s.active = 'due'; update(); };
+  $('tPaid').onclick = function(){ s.active = 'paid'; update(); };
+  $('pad').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    press(b.getAttribute('data-k'));
+  });
+  $('quick').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    buzz();
+    var q = b.getAttribute('data-q');
+    if (q === 'more'){ openRcv(); return; }
+    s.paid = q === 'eq' ? s.due : q; s.recv = {}; if (q !== 'eq') s.recv[parseInt(q,10)*100] = 1;
+    s.tipC = 0; s.custom = false; s.tipStr = ''; s.active = 'paid';
+    update();
+  });
+  function reset(){ s = {due:'', paid:'', tipStr:'', tipC:0, custom:false, active:'due', recv:{}}; update(); }
+  $('clear').onclick = function(){ buzz(); reset(); };
+  function finish(){
+    var snap = {c: JSON.parse(JSON.stringify(till.c)), seen: JSON.parse(JSON.stringify(till.seen)), s: JSON.parse(JSON.stringify(s)), tipId: null};
+    var tip = s.tipC;
+    commit();
+    if (tip > 0){ var id = Date.now(); tips.unshift({id: id, ts: id, amt: tip}); snap.tipId = id; persist(); render(); }
+    lastUndo = snap;
+    reset();
+    var msg = tip > 0 ? 'Napiwek ' + fmt(tip) + ' zł zapisany' : 'Wydano';
+    var low = lowList();
+    if (low.length) msg += ' · mało: ' + low.map(label).join(', ');
+    toast(msg, true); renderTill();
+  }
+  function doUndo(){
+    if (!lastUndo) return;
+    buzz();
+    till.c = lastUndo.c; till.seen = lastUndo.seen;
+    if (lastUndo.tipId){ tips = tips.filter(function(x){ return x.id !== lastUndo.tipId; }); persist(); render(); }
+    persistTill();
+    s = lastUndo.s; lastUndo = null;
+    renderTill(); update();
+    document.querySelector('nav button[data-v="change"]').click();
+    toast('Cofnięto');
+  }
+  $('saveTip').onclick = function(){ if (s.tipC <= 0) return; buzz(); finish(); };
+
+  $('doneBtn').onclick = function(){ buzz(); finish(); };
+
+  function colorFor(d){
+    return {20000:'var(--n200)',10000:'var(--n100)',5000:'var(--n50)',2000:'var(--n20)',1000:'var(--n10)'}[d] || 'var(--coin)';
+  }
+  function renderTill(){
+    $('trackPill').textContent = till.track ? 'WŁ.' : 'WYŁ.';
+    $('trackPill').className = 'pill' + (till.track ? ' on' : '');
+    var total = 0, box = $('tillRows'); box.innerHTML = '';
+    DENOMS.forEach(function(d){
+      var n = till.c[d] || 0; total += n*d;
+      var row = document.createElement('div'); row.className = 'trow';
+      var sw = document.createElement('span'); sw.className = 'sw' + (d < 1000 ? ' round' : ''); sw.style.background = colorFor(d);
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = label(d);
+      var minus = document.createElement('button'); minus.className = 'step'; minus.textContent = '−'; minus.setAttribute('aria-label','Mniej ' + label(d));
+      var cnt = document.createElement('button'); cnt.className = 'cnt' + (n ? '' : ' zero') + (isLow(d) ? ' low' : ''); cnt.textContent = n;
+      var plus = document.createElement('button'); plus.className = 'step'; plus.textContent = '+'; plus.setAttribute('aria-label','Więcej ' + label(d));
+      function set(v){ till.c[d] = Math.max(0, Math.min(9999, v)); if (till.c[d] > 0) till.seen[d] = true; persistTill(); renderTill(); update(); }
+      minus.onclick = function(){ buzz(); set((till.c[d]||0) - 1); };
+      plus.onclick = function(){ buzz(); set((till.c[d]||0) + 1); };
+      cnt.onclick = function(){
+        var v = prompt('Ile sztuk: ' + label(d), String(till.c[d]||0));
+        if (v === null) return;
+        var q = parseInt(v, 10);
+        if (isFinite(q) && q >= 0) set(q);
+      };
+      row.appendChild(sw); row.appendChild(nm); row.appendChild(minus); row.appendChild(cnt); row.appendChild(plus);
+      box.appendChild(row);
+    });
+    $('tillTotal').textContent = fmt(total) + ' zł';
+    var low = lowList(), lm = $('lowMsg');
+    if (low.length){ lm.style.display = ''; lm.textContent = 'Kończą się: ' + low.map(label).join(', '); } else { lm.style.display = 'none'; }
+    $('lowDot').style.display = low.length ? 'block' : 'none';
+    $('minVal').textContent = till.min > 0 ? till.min + ' szt.' : 'wył.';
+    $('undoBtn').style.display = lastUndo ? '' : 'none';
+  }
+  $('trackBtn').onclick = function(){ buzz(); till.track = !till.track; persistTill(); renderTill(); update(); };
+  $('tillReset').onclick = function(){
+    if (confirm('Wyzerować wszystkie nominały w kasie?')){ till.c = {}; persistTill(); renderTill(); update(); }
+  };
+
+  $('minMinus').onclick = function(){ buzz(); till.min = Math.max(0, till.min - 1); persistTill(); renderTill(); };
+  $('minPlus').onclick = function(){ buzz(); till.min = Math.min(99, till.min + 1); persistTill(); renderTill(); };
+  $('undoBtn').onclick = doUndo;
+
+  // co dał klient (tylko przy włączonym pilnowaniu kasy)
+  var tmp = {};
+  function recvTotal(o){ var x = 0; DENOMS.forEach(function(d){ x += (o[d]||0) * d; }); return x; }
+  function centsStr(c){ var z = Math.floor(c/100), g = c % 100; return g ? z + ',' + (g<10?'0':'') + g : String(z); }
+  function shortLabel(d){ return d >= 100 ? String(d/100) : d + 'gr'; }
+  function recvSummary(){
+    if (!till.track || !s.recv) return '';
+    return DENOMS.filter(function(d){ return s.recv[d] > 0; }).map(function(d){ return s.recv[d] + '×' + shortLabel(d); }).join(' ');
+  }
+  function renderRcv(){
+    var box = $('rcvRows'); box.innerHTML = '';
+    DENOMS.forEach(function(d){
+      var n = tmp[d] || 0;
+      var row = document.createElement('div'); row.className = 'trow';
+      var sw = document.createElement('span'); sw.className = 'sw' + (d < 1000 ? ' round' : ''); sw.style.background = colorFor(d);
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = label(d);
+      var minus = document.createElement('button'); minus.className = 'step'; minus.textContent = '−';
+      var cv = document.createElement('span'); cv.className = 'cntv' + (n ? '' : ' zero'); cv.textContent = n;
+      var plus = document.createElement('button'); plus.className = 'step'; plus.textContent = '+';
+      minus.onclick = function(){ buzz(); tmp[d] = Math.max(0, (tmp[d]||0) - 1); renderRcv(); };
+      plus.onclick = function(){ buzz(); tmp[d] = Math.min(999, (tmp[d]||0) + 1); renderRcv(); };
+      row.appendChild(sw); row.appendChild(nm); row.appendChild(minus); row.appendChild(cv); row.appendChild(plus);
+      box.appendChild(row);
+    });
+    $('rcvTotal').textContent = fmt(recvTotal(tmp)) + ' zł';
+  }
+  function openRcv(){ tmp = JSON.parse(JSON.stringify(s.recv || {})); renderRcv(); $('sheet').style.display = 'flex'; }
+  $('sheet').onclick = function(e){ if (e.target === this) this.style.display = 'none'; };
+  $('rcvClear').onclick = function(){ buzz(); tmp = {}; renderRcv(); };
+  $('rcvOk').onclick = function(){
+    buzz();
+    var tot = recvTotal(tmp), o = {};
+    DENOMS.forEach(function(d){ if (tmp[d] > 0) o[d] = tmp[d]; });
+    $('sheet').style.display = 'none';
+    if (tot <= 0) return;
+    s.recv = o; s.paid = centsStr(tot); s.tipC = 0; s.custom = false; s.tipStr = ''; s.active = 'paid';
+    update();
+  };
+
+  // eksport wszystkich danych: kasa + napiwki
+  function pad2(n){ return (n < 10 ? '0' : '') + n; }
+  function stamp(d){ return pad2(d.getDate()) + '.' + pad2(d.getMonth()+1) + '.' + d.getFullYear() + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  function plain(c){ return fmt(c).replace(/\u00A0/g, ''); }
+  function totals(){
+    var now = Date.now(), r = {today:0, week:0, all:0, cash:0};
+    tips.forEach(function(x){ r.all += x.amt; if (sameDay(x.ts, now)) r.today += x.amt; if (now - x.ts < 7*86400000) r.week += x.amt; });
+    DENOMS.forEach(function(d){ r.cash += (till.c[d]||0) * d; });
+    return r;
+  }
+  function reportText(){
+    var tt = totals(), L = [];
+    L.push('Reszta i napiwki, stan na ' + stamp(new Date()), '');
+    L.push('GOTÓWKA W KASIE: ' + plain(tt.cash) + ' zł');
+    DENOMS.forEach(function(d){ var n = till.c[d]||0; if (n > 0) L.push(label(d) + ' × ' + n + ' = ' + plain(n*d) + ' zł'); });
+    if (tt.cash === 0) L.push('(kasa pusta albo nie wpisana)');
+    L.push('');
+    L.push('NAPIWKI: dziś ' + plain(tt.today) + ' zł, 7 dni ' + plain(tt.week) + ' zł, razem ' + plain(tt.all) + ' zł');
+    tips.forEach(function(x){ L.push(stamp(new Date(x.ts)) + '  +' + plain(x.amt) + ' zł'); });
+    return L.join('\n');
+  }
+  function reportCsv(){
+    var tt = totals(), L = [];
+    L.push('Raport;' + stamp(new Date()));
+    L.push('Gotówka w kasie (zł);' + plain(tt.cash));
+    L.push('');
+    L.push('Nominał;Sztuk;Wartość (zł)');
+    DENOMS.forEach(function(d){ var n = till.c[d]||0; L.push(label(d) + ';' + n + ';' + plain(n*d)); });
+    L.push('');
+    L.push('Napiwki dziś (zł);' + plain(tt.today));
+    L.push('Napiwki 7 dni (zł);' + plain(tt.week));
+    L.push('Napiwki razem (zł);' + plain(tt.all));
+    L.push('');
+    L.push('Data;Godzina;Kwota (zł)');
+    tips.forEach(function(x){
+      var d = new Date(x.ts);
+      L.push(pad2(d.getDate()) + '.' + pad2(d.getMonth()+1) + '.' + d.getFullYear() + ';' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ';' + plain(x.amt));
+    });
+    return L.join('\r\n');
+  }
+  $('shareAll').onclick = function(){
+    var text = reportText();
+    function fallback(){
+      try { navigator.clipboard.writeText(text).then(function(){ toast('Skopiowano do schowka'); }, function(){ prompt('Skopiuj:', text); }); }
+      catch(e){ prompt('Skopiuj:', text); }
+    }
+    if (navigator.share){ navigator.share({title:'Reszta i napiwki', text:text}).catch(function(err){ if (!err || err.name !== 'AbortError') fallback(); }); }
+    else fallback();
+  };
+  $('dlAll').onclick = function(){
+    var d = new Date();
+    var blob = new Blob(['\uFEFF' + reportCsv()], {type:'text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = 'reszta-' + d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()) + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    toast('Plik CSV pobrany');
+  };
+  $('vibTest').onclick = function(){
+    if (!navigator.vibrate){ toast('Ta przeglądarka nie obsługuje wibracji'); return; }
+    navigator.vibrate(200); toast('Wysłano wibrację');
+  };
+
+  function sameDay(a,b){ return new Date(a).toDateString() === new Date(b).toDateString(); }
+  function render(){
+    var now = Date.now(), today = 0, week = 0, all = 0;
+    tips.forEach(function(t){
+      all += t.amt;
+      if (sameDay(t.ts, now)) today += t.amt;
+      if (now - t.ts < 7*86400000) week += t.amt;
+    });
+    $('sToday').textContent = fmt(today) + ' zł';
+    $('sWeek').textContent = fmt(week) + ' zł';
+    $('sAll').textContent = fmt(all) + ' zł';
+    var ul = $('hist'); ul.innerHTML = '';
+    if (!tips.length){ ul.innerHTML = '<li class="empty">Brak napiwków. Zapisz pierwszy w zakładce Reszta.</li>'; return; }
+    tips.slice(0,100).forEach(function(t){
+      var d = new Date(t.ts);
+      var when = d.toLocaleDateString('pl-PL',{day:'numeric',month:'short'}) + ', ' + d.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});
+      var li = document.createElement('li');
+      li.innerHTML = '<div><div class="amt">+' + fmt(t.amt) + ' zł</div><div class="when">' + when + '</div></div>';
+      var b = document.createElement('button'); b.className = 'del'; b.textContent = '✕'; b.setAttribute('aria-label','Usuń');
+      b.onclick = function(){ tips = tips.filter(function(x){return x.id !== t.id}); persist(); render(); };
+      li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  $('addManual').onclick = function(){
+    var c = toCents($('manual').value); if (!c){ toast('Wpisz kwotę'); return; }
+    tips.unshift({id: Date.now(), ts: Date.now(), amt: c}); persist(); $('manual').value = ''; render(); toast('Dodano ' + fmt(c) + ' zł');
+  };
+  $('wipe').onclick = function(){
+    if (!tips.length) return;
+    if (confirm('Usunąć całą historię napiwków?')){ tips = []; persist(); render(); }
+  };
+
+  document.querySelectorAll('nav button').forEach(function(b){
+    b.onclick = function(){
+      document.querySelectorAll('nav button').forEach(function(x){x.classList.remove('on')});
+      document.querySelectorAll('.view').forEach(function(x){x.classList.remove('on')});
+      b.classList.add('on'); $('v-' + b.getAttribute('data-v')).classList.add('on');
+      window.scrollTo(0,0); render(); renderTill();
+    };
+  });
+
+  update(); render(); renderTill();
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
